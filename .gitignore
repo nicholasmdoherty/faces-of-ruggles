@@ -102,3 +102,15 @@ venv.bak/
 
 # mypy
 .mypy_cache/
+
+# Secrets
+secrets.py
+
+node_modules
+*.db
+*.pyc
+
+pip-selfcheck.json
+
+include
+bin
