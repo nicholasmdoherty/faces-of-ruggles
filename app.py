@@ -2,8 +2,8 @@ import os
 import sqlite3
 from flask import Flask, request, g, jsonify, render_template
 from twilio.twiml.messaging_response import MessagingResponse
+from profanity_check import predict
 import secrets
-
 
 app = Flask(__name__, static_folder='./public')
 app.config.update(dict(
@@ -24,10 +24,30 @@ def question_reply():
 
     # Get the reply message for the prompt on the screen
     message_body = request.values.get('Body')
+    message_number = request.values.get('From')
 
-    """ We want to do a quick check for profanity, and let them know 
-    if we aren't taking the response. 
+    """ We want to do a quick check for profanity, and let them know
+    if we aren't taking the response.
     """
+
+    # If this message is profane, we don't want to add it
+    if predict([message_body])[0] == 1:
+        resp = MessagingResponse()
+        resp.message(
+            "Thanks for your reply! Your message has been found to be potentiall offensive, so it will not show up")
+
+        return str(resp)
+
+    # If this message is not profane, we want to add it to the DB
+    db = get_db()
+    cursor = db.cursor()
+
+    # Insert into replies table
+    cursor.execute('insert into replies (question_id, texted_from, reply) values (?, ?, ?)', [
+                   get_current_prompt_id(), message_number, message_body])
+
+    db.commit()
+    cursor.close()
 
     # Write our response.
     resp = MessagingResponse()
@@ -55,15 +75,11 @@ def get_current_prompt_info():
     to get all the data about the current prompt.
     """
 
-    # Default to prompt 1 if there is no current prompt chosen.
-    if not hasattr(g, 'prompt_id'):
-        g.prompt_id = 1
-
     db = get_db()
     cursor = db.cursor()
 
     # Select the prompt from the DB where the id is the global prompt id
-    cursor.execute(f"select * from prompts where id = {g.prompt_id}")
+    cursor.execute("select * from prompts where currently_showing = 1")
     prompt = cursor.fetchall()[0]
 
     if not prompt:
@@ -72,12 +88,15 @@ def get_current_prompt_info():
     # Select all replies from the DB that where the question_id is the
     # global prompt id
     cursor.execute(
-        'select * from replies where question_id = ?', [g.prompt_id])
+        'select * from replies where question_id = ?', [prompt['id']])
     replies_sql = cursor.fetchall()
 
     replies = []
     for reply_row in replies_sql:
-        reply = (reply_row["id"], reply_row["texted_from"], reply_row["reply"])
+        reply = {}
+        reply['id'] = reply_row["id"]
+        reply['texted_from'] = reply_row["texted_from"]
+        reply['answer'] = reply_row["reply"]
         replies.append(reply)
 
     prompt_response = {
@@ -87,7 +106,41 @@ def get_current_prompt_info():
         'replies': replies
     }
 
+    cursor.close()
+
     return jsonify(prompt_response)
+
+
+@app.route("/change-prompt", methods=['POST'])
+def change_current_prompt():
+    new_prompt_id = request.values.get('prompt_id')
+    db = get_db()
+    cursor = db.cursor()
+
+    # Set the currently showing to 0
+    cursor.execute(
+        f"UPDATE prompts SET currently_showing = 0 WHERE currently_showing = 1")
+
+    # Set the given prompt id to currently showing
+    cursor.execute(
+        f"UPDATE prompts SET currently_showing = 1 WHERE id = {new_prompt_id}")
+
+    db.commit()
+    cursor.close()
+    return jsonify({'new_prompt': new_prompt_id})
+
+
+def get_current_prompt_id():
+    db = get_db()
+    cursor = db.cursor()
+
+    cursor.execute("select * from prompts where currently_showing = 1")
+    prompt = cursor.fetchall()[0]
+
+    db.commit()
+    cursor.close()
+    return prompt['id']
+
 
 ###################################################
 # DATABASE FUNCTIONS

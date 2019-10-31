@@ -1,0 +1,31 @@
+.installation-wrapper {
+  height: 100vh;
+}
+
+.quote-column {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100%;
+}
+
+.reply-column {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  height: 100%;
+}
+
+.replies-section {
+  overflow-y: hidden;
+  overflow-x: none;
+  max-height: 75vh;
+}
+
+.text-bubble {
+  color: white;
+  border-radius: 10px 10px 10px 0px;
+  padding: 0.5rem;
+  margin: 0.5rem;
+  margin-bottom: 0.1rem;
+}

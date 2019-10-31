@@ -3,7 +3,8 @@ create table prompts(
   id integer primary key autoincrement,
   question text not null,
   "image" text not null,
-  quote text not null
+  quote text not null,
+  currently_showing integer not null
 );
 
 drop table if exists replies;
