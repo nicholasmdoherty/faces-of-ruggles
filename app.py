@@ -34,7 +34,7 @@ def question_reply():
     if predict([message_body])[0] == 1:
         resp = MessagingResponse()
         resp.message(
-            "Thanks for your reply! Your message has been found to be potentiall offensive, so it will not show up")
+            "Thanks for your reply! Your message has been found to be potentially offensive, so it will not show up")
 
         return str(resp)
 
